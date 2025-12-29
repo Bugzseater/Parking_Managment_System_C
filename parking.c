@@ -1,6 +1,6 @@
 /*
  * CSC 506 1.0 - Car Park Management System
- * ENHANCED UI VERSION with PROPER PERSISTENCE + DAILY REPORT
+ * COMPLETE VERSION with PROPER PERSISTENCE + DAILY REPORT
  */
 
 #include <stdio.h>
@@ -8,13 +8,6 @@
 #include <string.h>
 #include <time.h>
 #include <ctype.h>
-
-#ifdef _WIN32
-    #include <windows.h>
-    #include <conio.h>
-#else
-    #include <unistd.h>
-#endif
 
 #define MAX_MOTORCYCLE 100
 #define MAX_THREE_WHEELER 75
@@ -47,8 +40,8 @@
 #define DISCOUNT_GUEST 0
 
 #define MAX_RECORDS 1000
-#define DATA_FILE "parking_data.dat"
-#define TEXT_FILE "parking_report.txt"
+#define DATA_FILE "parking_data.dat"  // Binary file for proper persistence
+#define TEXT_FILE "parking_report.txt" // Text file for reports
 
 // =============== STRUCTURES ===============
 typedef struct {
@@ -80,144 +73,6 @@ ParkingRecord records[MAX_RECORDS];
 int record_count = 0;
 int total_vehicles_served = 0;
 float total_revenue = 0;
-
-// =============== UI ENHANCEMENT FUNCTIONS ===============
-void clear_screen() {
-    #ifdef _WIN32
-        system("cls");
-    #else
-        system("clear");
-    #endif
-}
-
-void sleep_ms(int milliseconds) {
-    #ifdef _WIN32
-        Sleep(milliseconds);
-    #else
-        usleep(milliseconds * 1000);
-    #endif
-}
-
-void print_centered(const char* text) {
-    int width = 70;
-    int len = strlen(text);
-    int padding = (width - len) / 2;
-    
-    for(int i = 0; i < padding; i++) printf(" ");
-    printf("%s\n", text);
-}
-
-void print_header_line() {
-    printf("\033[33m==============================================================================\n\033[0m");
-}
-
-void print_separator_line() {
-    printf("\033[33m------------------------------------------------------------------------------\n\033[0m");
-}
-
-void print_double_line() {
-    printf("\033[33m==============================================================================\n\033[0m");
-}
-
-void print_box_top() {
-    printf("\033[33m+---------------------------------------------------------------------------+\n\033[0m");
-}
-
-void print_box_bottom() {
-    printf("\033[33m+---------------------------------------------------------------------------+\n\033[0m");
-}
-
-void print_box_middle() {
-    printf("\033[33m|---------------------------------------------------------------------------|\n\033[0m");
-}
-
-void print_boxed_text(const char* text) {
-    print_box_top();
-    printf("|");
-    print_centered(text);
-    printf("|");
-    print_box_bottom();
-}
-
-void print_menu_box(const char* text) {
-    printf("\n");
-    print_box_top();
-    printf("|"); print_centered(text); printf("|\n");
-    print_box_bottom();
-}
-
-void print_success(const char* message) {
-    printf("\n  [SUCCESS] %s\n", message);
-}
-
-void print_error(const char* message) {
-    printf("\n  [ERROR] %s\n", message);
-}
-
-void print_warning(const char* message) {
-    printf("\n  [WARNING] %s\n", message);
-}
-
-void print_info(const char* message) {
-    printf("\n  [INFO] %s\n", message);
-}
-
-void print_loading(const char* message) {
-    printf("\n  %s", message);
-    fflush(stdout);
-    for(int i = 0; i < 3; i++) {
-        printf(".");
-        fflush(stdout);
-        sleep_ms(300);
-    }
-    printf("\n");
-}
-
-void clear_input_buffer() {
-    int c;
-    while ((c = getchar()) != '\n' && c != EOF);
-}
-
-void press_enter_to_continue() {
-    printf("\n  Press ENTER to continue...");
-    clear_input_buffer();
-    getchar();
-}
-
-void display_system_header() {
-    clear_screen();
-    
-    print_double_line();
-    print_centered("CAR PARK MANAGEMENT SYSTEM");
-    print_centered("CSC 506 - Advanced Programming Project");
-    print_double_line();
-    
-    time_t now = time(NULL);
-    struct tm *local_time = localtime(&now);
-    char time_str[50];
-    strftime(time_str, sizeof(time_str), "%A, %B %d, %Y at %I:%M %p", local_time);
-    
-    printf("\n  Date/Time: %s\n", time_str);
-    
-    int parked_count = 0;
-    for(int v = 0; v < 5; v++) {
-        for(int i = 0; i < max_slots[v]; i++) {
-            if(parking_slots[v][i].is_occupied) {
-                parked_count++;
-            }
-        }
-    }
-    
-    printf("  Status: ");
-    if(parked_count == 0) printf("EMPTY");
-    else if(parked_count < 100) printf("LIGHT");
-    else if(parked_count < 200) printf("MODERATE");
-    else printf("HEAVY");
-    printf(" (%d vehicles currently parked)\n", parked_count);
-    
-    printf("  Total Revenue: Rs %.2f | Total Vehicles Served: %d\n", total_revenue, total_vehicles_served);
-    print_separator_line();
-}
 
 // =============== UTILITY FUNCTIONS ===============
 int get_vehicle_index(char t){
@@ -252,6 +107,11 @@ char* customer_name(char t){
     }
 }
 
+void clear_input_buffer() {
+    int c;
+    while ((c = getchar()) != '\n' && c != EOF);
+}
+
 // Function to check if two times are on the same day
 int is_same_day(time_t t1, time_t t2) {
     struct tm *tm1 = localtime(&t1);
@@ -282,18 +142,19 @@ time_t get_end_of_day(time_t timestamp) {
 
 // =============== DAILY REPORT FUNCTION ===============
 void show_daily_report() {
-    display_system_header();
-    print_menu_box("DAILY PARKING REPORT");
+    printf("\n========== DAILY PARKING REPORT ==========\n");
     
     if (record_count == 0) {
-        print_warning("No parking records available.");
-        press_enter_to_continue();
+        printf("No parking records available.\n");
+        printf("Press Enter to continue...");
+        clear_input_buffer();
+        getchar();
         return;
     }
     
     // Get date from user
     int day, month, year;
-    printf("\n  Enter date for report (DD MM YYYY) or 0 0 0 for today: ");
+    printf("Enter date for report (DD MM YYYY) or 0 0 0 for today: ");
     scanf("%d %d %d", &day, &month, &year);
     clear_input_buffer();
     
@@ -303,8 +164,8 @@ void show_daily_report() {
     } else {
         struct tm target_tm = {0};
         target_tm.tm_mday = day;
-        target_tm.tm_mon = month - 1;
-        target_tm.tm_year = year - 1900;
+        target_tm.tm_mon = month - 1;  // tm_mon is 0-11
+        target_tm.tm_year = year - 1900;  // tm_year is years since 1900
         target_tm.tm_hour = 0;
         target_tm.tm_min = 0;
         target_tm.tm_sec = 0;
@@ -315,25 +176,22 @@ void show_daily_report() {
     char date_str[20];
     strftime(date_str, sizeof(date_str), "%Y-%m-%d", target_info);
     
-    printf("\n");
-    print_separator_line();
-    printf("  Report for Date: %s\n", date_str);
-    print_separator_line();
+    printf("\nReport for Date: %s\n", date_str);
+    printf("===============================================\n");
     
     // Variables for daily statistics
     int daily_vehicles = 0;
     float daily_revenue = 0.0;
-    int vehicles_by_type[5] = {0};
-    int vehicles_by_customer[5] = {0};
+    int vehicles_by_type[5] = {0};  // M, T, C, V, B
+    int vehicles_by_customer[5] = {0};  // D, V, S, R, G
     float revenue_by_type[5] = {0.0};
     float revenue_by_customer[5] = {0.0};
     
     // Filter records for the selected day
-    printf("\n  TRANSACTIONS FOR %s:\n", date_str);
-    print_separator_line();
-    printf("  %-15s %-10s %-12s %-8s %-8s %-10s\n", 
+    printf("\nTRANSACTIONS FOR %s:\n", date_str);
+    printf("%-15s %-10s %-12s %-10s %-10s %-10s\n", 
            "Vehicle No.", "Type", "Customer", "Entry", "Exit", "Amount");
-    print_separator_line();
+    printf("------------------------------------------------------------------------\n");
     
     int has_transactions = 0;
     time_t day_start = get_start_of_day(target_day);
@@ -350,7 +208,7 @@ void show_daily_report() {
             strftime(entry_str, sizeof(entry_str), "%H:%M", entry_tm);
             strftime(exit_str, sizeof(exit_str), "%H:%M", exit_tm);
             
-            printf("  %-15s %-10s %-12s %-8s %-8s Rs %7.2f\n",
+            printf("%-15s %-10s %-12s %-10s %-10s Rs %7.2f\n",
                    records[i].vehicle_number,
                    vehicle_name(records[i].vehicle_type),
                    customer_name(records[i].customer_type),
@@ -386,33 +244,29 @@ void show_daily_report() {
     }
     
     if (!has_transactions) {
-        print_warning("No transactions found for this date.");
-        press_enter_to_continue();
+        printf("No transactions found for this date.\n");
+        printf("Press Enter to continue...");
+        getchar();
         return;
     }
     
     // Display summary statistics
-    printf("\n");
-    print_separator_line();
-    printf("  DAILY SUMMARY\n");
-    print_separator_line();
-    printf("  Total Vehicles: %d\n", daily_vehicles);
-    printf("  Total Revenue: Rs %.2f\n", daily_revenue);
+    printf("\n========== DAILY SUMMARY ==========\n");
+    printf("Total Vehicles: %d\n", daily_vehicles);
+    printf("Total Revenue: Rs %.2f\n", daily_revenue);
     
     if (daily_vehicles > 0) {
-        printf("  Average per Vehicle: Rs %.2f\n", daily_revenue / daily_vehicles);
+        printf("Average per Vehicle: Rs %.2f\n", daily_revenue / daily_vehicles);
     }
     
     // Vehicle Type Breakdown
-    printf("\n  BY VEHICLE TYPE:\n");
-    print_separator_line();
-    printf("  %-20s %-10s %-15s %-15s\n", "Type", "Count", "Revenue", "Avg/Vehicle");
-    print_separator_line();
-    
+    printf("\nBY VEHICLE TYPE:\n");
+    printf("%-20s %-10s %-15s %-15s\n", "Type", "Count", "Revenue", "Avg/Vehicle");
+    printf("--------------------------------------------------------------\n");
     for (int i = 0; i < 5; i++) {
         char vt = "MTCVB"[i];
         if (vehicles_by_type[i] > 0) {
-            printf("  %-20s %-10d Rs %-12.2f Rs %-12.2f\n",
+            printf("%-20s %-10d Rs %-12.2f Rs %-12.2f\n",
                    vehicle_name(vt),
                    vehicles_by_type[i],
                    revenue_by_type[i],
@@ -421,15 +275,13 @@ void show_daily_report() {
     }
     
     // Customer Type Breakdown
-    printf("\n  BY CUSTOMER TYPE:\n");
-    print_separator_line();
-    printf("  %-20s %-10s %-15s %-15s\n", "Customer", "Count", "Revenue", "Avg/Vehicle");
-    print_separator_line();
-    
+    printf("\nBY CUSTOMER TYPE:\n");
+    printf("%-20s %-10s %-15s %-15s\n", "Customer", "Count", "Revenue", "Avg/Vehicle");
+    printf("--------------------------------------------------------------\n");
     char cust_types[5] = {'D', 'V', 'S', 'R', 'G'};
     for (int i = 0; i < 5; i++) {
         if (vehicles_by_customer[i] > 0) {
-            printf("  %-20s %-10d Rs %-12.2f Rs %-12.2f\n",
+            printf("%-20s %-10d Rs %-12.2f Rs %-12.2f\n",
                    customer_name(cust_types[i]),
                    vehicles_by_customer[i],
                    revenue_by_customer[i],
@@ -437,7 +289,54 @@ void show_daily_report() {
         }
     }
     
-    press_enter_to_continue();
+    // Peak hour analysis
+    printf("\nHOURLY ANALYSIS:\n");
+    int hourly_count[24] = {0};
+    float hourly_revenue[24] = {0};
+    
+    for (int i = 0; i < record_count; i++) {
+        if (records[i].exit_time >= day_start && records[i].exit_time <= day_end) {
+            struct tm *exit_tm = localtime(&records[i].exit_time);
+            int hour = exit_tm->tm_hour;
+            hourly_count[hour]++;
+            hourly_revenue[hour] += records[i].payable;
+        }
+    }
+    
+    printf("Hour : Vehicles Revenue\n");
+    printf("-----------------------\n");
+    for (int hour = 0; hour < 24; hour++) {
+        if (hourly_count[hour] > 0) {
+            printf("%02d:00 : %-9d Rs %.2f\n", 
+                   hour, hourly_count[hour], hourly_revenue[hour]);
+        }
+    }
+    
+    printf("\nBUSIEST HOURS:\n");
+    int max_vehicles = 0, max_revenue_hour = 0;
+    float max_revenue = 0;
+    
+    for (int hour = 0; hour < 24; hour++) {
+        if (hourly_count[hour] > max_vehicles) {
+            max_vehicles = hourly_count[hour];
+        }
+        if (hourly_revenue[hour] > max_revenue) {
+            max_revenue = hourly_revenue[hour];
+            max_revenue_hour = hour;
+        }
+    }
+    
+    printf("Most vehicles: %d at hour(s): ", max_vehicles);
+    for (int hour = 0; hour < 24; hour++) {
+        if (hourly_count[hour] == max_vehicles) {
+            printf("%02d:00 ", hour);
+        }
+    }
+    printf("\nHighest revenue: Rs %.2f at %02d:00\n", max_revenue, max_revenue_hour);
+    
+    printf("\nPress Enter to continue...");
+    clear_input_buffer();
+    getchar();
 }
 
 // =============== INITIALIZATION ===============
@@ -511,24 +410,26 @@ void initialize_system(){
     }
 }
 
-// =============== FILE STORAGE ===============
+// =============== FILE STORAGE (PROPER PERSISTENCE) ===============
 void save_data(){
-    print_loading("Saving system data");
-    
+    // Save binary data for proper persistence
     FILE *binary_file = fopen(DATA_FILE, "wb");
     if(!binary_file) {
-        print_error("Cannot create data file!");
+        printf("Error: Cannot create data file!\n");
         return;
     }
     
+    // Save statistics
     fwrite(&total_vehicles_served, sizeof(int), 1, binary_file);
     fwrite(&total_revenue, sizeof(float), 1, binary_file);
     fwrite(&record_count, sizeof(int), 1, binary_file);
     
+    // Save records
     if(record_count > 0) {
         fwrite(records, sizeof(ParkingRecord), record_count, binary_file);
     }
     
+    // Save parking slots (CURRENT STATE)
     for(int v = 0; v < 5; v++){
         fwrite(parking_slots[v], sizeof(ParkingSlot), max_slots[v], binary_file);
     }
@@ -578,46 +479,46 @@ void save_data(){
         }
         
         fclose(text_file);
-        print_success("Data saved successfully to files!");
+        printf("Data saved to '%s' and report to '%s'\n", DATA_FILE, TEXT_FILE);
     } else {
-        print_success("Data saved successfully!");
+        printf("Data saved to '%s'\n", DATA_FILE);
     }
-    
-    sleep_ms(1000);
 }
 
 void load_data(){
-    print_loading("Initializing system");
-    
     // First initialize the system
     initialize_system();
     
     FILE *file = fopen(DATA_FILE, "rb");
     if(!file) {
-        print_warning("No previous data found. Starting fresh system.");
+        printf("No previous data found. Starting fresh system.\n");
         return;
     }
     
-    print_loading("Loading previous data");
+    printf("Loading previous data...\n");
     
+    // Load statistics
     fread(&total_vehicles_served, sizeof(int), 1, file);
     fread(&total_revenue, sizeof(float), 1, file);
     fread(&record_count, sizeof(int), 1, file);
     
+    // Load records
     if(record_count > 0 && record_count <= MAX_RECORDS) {
         fread(records, sizeof(ParkingRecord), record_count, file);
     } else if(record_count > MAX_RECORDS) {
-        print_warning("Too many records, loading only maximum allowed");
+        printf("Warning: Too many records, loading only %d\n", MAX_RECORDS);
         fread(records, sizeof(ParkingRecord), MAX_RECORDS, file);
         record_count = MAX_RECORDS;
     }
     
+    // Load parking slots (CURRENT STATE)
     for(int v = 0; v < 5; v++){
         fread(parking_slots[v], sizeof(ParkingSlot), max_slots[v], file);
     }
     
     fclose(file);
     
+    // Count currently parked vehicles
     int parked_count = 0;
     for(int v = 0; v < 5; v++){
         for(int i = 0; i < max_slots[v]; i++){
@@ -627,13 +528,8 @@ void load_data(){
         }
     }
     
-    printf("\n  System Status:\n");
-    printf("    - Total Records: %d\n", record_count);
-    printf("    - Currently Parked: %d vehicles\n", parked_count);
-    printf("    - Total Revenue: Rs %.2f\n", total_revenue);
-    
-    print_success("System initialized successfully!");
-    sleep_ms(1500);
+    printf("Loaded: %d records, %d currently parked vehicles, Revenue: Rs %.2f\n", 
+           record_count, parked_count, total_revenue);
 }
 
 // =============== CHARGES CALCULATION ===============
@@ -668,14 +564,12 @@ float calculate_charge(char v_type, time_t entry, time_t exit){
 
 // =============== STATISTICS ===============
 void show_statistics(){
-    display_system_header();
-    print_menu_box("CAR PARK STATISTICS");
+    printf("\n========== CAR PARK STATISTICS ==========\n");
     
     // Current parking status
-    printf("\n  CURRENT PARKING STATUS:\n");
-    print_separator_line();
-    printf("  %-20s %-10s %-10s %-10s %-10s\n", "Vehicle Type", "Total", "Occupied", "Free", "Utilization");
-    print_separator_line();
+    printf("\nCURRENT PARKING STATUS:\n");
+    printf("%-20s %-10s %-10s %-10s\n", "Vehicle Type", "Total", "Occupied", "Free");
+    printf("----------------------------------------------------\n");
     
     int total_occupied = 0;
     int total_slots = 0;
@@ -695,19 +589,16 @@ void show_statistics(){
         
         float utilization = (float)occupied / max_slots[v] * 100;
         
-        printf("  %-20s %-10d %-10d %-10d %-9.1f%%\n", 
+        printf("%-20s %-10d %-10d %-10d (%.1f%%)\n", 
                vehicle_name(vt), max_slots[v], occupied, max_slots[v] - occupied, utilization);
     }
     
-    printf("\n");
-    print_separator_line();
-    printf("  Overall Status: %d/%d slots occupied (%.1f%%)\n", 
+    printf("\nOverall: %d/%d slots occupied (%.1f%%)\n", 
            total_occupied, total_slots, (float)total_occupied/total_slots*100);
     
     // Show currently parked vehicles
     if(total_occupied > 0){
-        printf("\n  CURRENTLY PARKED VEHICLES:\n");
-        print_separator_line();
+        printf("\nCURRENTLY PARKED VEHICLES:\n");
         for(int v = 0; v < 5; v++){
             for(int i = 0; i < max_slots[v]; i++){
                 if(parking_slots[v][i].is_occupied){
@@ -726,16 +617,17 @@ void show_statistics(){
     }
     
     // Financial statistics
-    printf("\n  FINANCIAL STATISTICS:\n");
-    print_separator_line();
-    printf("  Total Vehicles Served: %d\n", total_vehicles_served);
-    printf("  Total Revenue: Rs %.2f\n", total_revenue);
+    printf("\nFINANCIAL STATISTICS:\n");
+    printf("Total Vehicles Served: %d\n", total_vehicles_served);
+    printf("Total Revenue: Rs %.2f\n", total_revenue);
     
     if(total_vehicles_served > 0){
-        printf("  Average per Vehicle: Rs %.2f\n", total_revenue / total_vehicles_served);
+        printf("Average per Vehicle: Rs %.2f\n", total_revenue / total_vehicles_served);
     }
     
-    press_enter_to_continue();
+    printf("\nPress Enter to continue...");
+    clear_input_buffer();
+    getchar();
 }
 
 // =============== PARKING OPERATIONS ===============
@@ -815,21 +707,20 @@ int find_available_slot(char v_type, char c_type){
 }
 
 void enter_vehicle(){
-    display_system_header();
-    print_menu_box("ENTER VEHICLE");
-    
     char vehicle_num[20];
     char v_type, c_type;
     
-    printf("\n  Vehicle Number: ");
+    printf("\n=== ENTER VEHICLE ===\n");
+    
+    printf("Vehicle Number: ");
     scanf("%s", vehicle_num);
     clear_input_buffer();
     
-    printf("  Vehicle Type (M/T/C/V/B): ");
+    printf("Vehicle Type (M/T/C/V/B): ");
     scanf("%c", &v_type);
     clear_input_buffer();
     
-    printf("  Customer Type (D/V/S/R/G): ");
+    printf("Customer Type (D/V/S/R/G): ");
     scanf("%c", &c_type);
     clear_input_buffer();
     
@@ -838,23 +729,18 @@ void enter_vehicle(){
     
     int vi = get_vehicle_index(v_type);
     if(vi == -1){
-        print_error("Invalid vehicle type!");
-        press_enter_to_continue();
+        printf("Invalid vehicle type!\n");
         return;
     }
     
     if(c_type != 'D' && c_type != 'V' && c_type != 'S' && c_type != 'R' && c_type != 'G'){
-        print_error("Invalid customer type!");
-        press_enter_to_continue();
+        printf("Invalid customer type!\n");
         return;
     }
     
-    print_loading("Finding available parking slot");
-    
     int slot_index = find_available_slot(v_type, c_type);
     if(slot_index == -1){
-        print_error("No parking slots available!");
-        press_enter_to_continue();
+        printf("No parking slots available for %s!\n", vehicle_name(v_type));
         return;
     }
     
@@ -864,39 +750,30 @@ void enter_vehicle(){
     parking_slots[vi][slot_index].customer_type = c_type;
     parking_slots[vi][slot_index].arrival_time = time(NULL);
     
-    printf("\n");
-    print_separator_line();
-    printf("  VEHICLE PARKED SUCCESSFULLY!\n");
-    print_separator_line();
-    
-    printf("\n  Parking Details:\n");
-    printf("    Vehicle Number : %s\n", vehicle_num);
-    printf("    Vehicle Type   : %s\n", vehicle_name(v_type));
-    printf("    Customer Type  : %s\n", customer_name(c_type));
-    printf("    Slot ID        : %d\n", parking_slots[vi][slot_index].slot_id);
+    printf("\n✓ VEHICLE PARKED SUCCESSFULLY!\n");
+    printf("  Slot ID: %d\n", parking_slots[vi][slot_index].slot_id);
+    printf("  Vehicle: %s (%s)\n", vehicle_num, vehicle_name(v_type));
+    printf("  Customer: %s\n", customer_name(c_type));
     
     char time_str[20];
     struct tm *timeinfo = localtime(&parking_slots[vi][slot_index].arrival_time);
-    strftime(time_str, sizeof(time_str), "%Y-%m-%d %H:%M:%S", timeinfo);
-    printf("    Arrival Time   : %s\n", time_str);
+    strftime(time_str, sizeof(time_str), "%Y-%m-%d %H:%M", timeinfo);
+    printf("  Arrival Time: %s\n", time_str);
     
     // Save immediately to persist the change
     save_data();
     
-    press_enter_to_continue();
+    printf("\nPress Enter to continue...");
+    getchar();
 }
 
 void exit_vehicle(){
-    display_system_header();
-    print_menu_box("EXIT VEHICLE");
-    
     char vehicle_num[20];
     
-    printf("\n  Enter Vehicle Number: ");
+    printf("\n=== EXIT VEHICLE ===\n");
+    printf("Enter Vehicle Number: ");
     scanf("%s", vehicle_num);
     clear_input_buffer();
-    
-    print_loading("Searching for vehicle");
     
     // Search for vehicle
     int found = 0;
@@ -916,8 +793,7 @@ void exit_vehicle(){
     }
     
     if(!found){
-        print_error("Vehicle not found in parking lot!");
-        press_enter_to_continue();
+        printf("Vehicle '%s' not found in parking lot!\n", vehicle_num);
         return;
     }
     
@@ -968,51 +844,46 @@ void exit_vehicle(){
     total_revenue += payable;
     
     // Print bill
-    printf("\n");
-    print_separator_line();
-    printf("  PARKING BILL\n");
-    print_separator_line();
-    
-    printf("\n  Vehicle Details:\n");
-    printf("    Vehicle Number : %s\n", vehicle_num);
-    printf("    Vehicle Type   : %s\n", vehicle_name(v_type));
-    printf("    Customer Type  : %s\n", customer_name(c_type));
+    printf("\n========== PARKING BILL ==========\n");
+    printf("Vehicle Number : %s\n", vehicle_num);
+    printf("Vehicle Type   : %s\n", vehicle_name(v_type));
+    printf("Customer Type  : %s\n", customer_name(c_type));
     
     char entry_str[20], exit_str[20];
     struct tm *entry_tm = localtime(&parking_slots[v_found][slot_found].arrival_time);
     struct tm *exit_tm = localtime(&exit_time);
     strftime(entry_str, sizeof(entry_str), "%Y-%m-%d %H:%M", entry_tm);
-    strftime(exit_str, sizeof(exit_str), "%Y-%m-%d %H:%M", exit_tm);
+    strftime(exit_str, sizeof(exit_str), "%Y-%m-d %H:%M", exit_tm);
     
-    printf("    Entry Time     : %s\n", entry_str);
-    printf("    Exit Time      : %s\n", exit_str);
+    printf("Entry Time     : %s\n", entry_str);
+    printf("Exit Time      : %s\n", exit_str);
     
     double duration = difftime(exit_time, parking_slots[v_found][slot_found].arrival_time);
     int hours = (int)duration / 3600;
     int minutes = ((int)duration % 3600) / 60;
-    printf("    Duration       : %d hours %d minutes\n", hours, minutes);
+    printf("Duration       : %d hours %d minutes\n", hours, minutes);
     
-    printf("\n  Payment Details:\n");
-    printf("    Base Charge    : Rs %8.2f\n", base_charge);
-    printf("    Discount       : Rs %8.2f\n", discount);
-    printf("    ---------------------------------\n");
-    printf("    Total Payable  : Rs %8.2f\n", payable);
+    printf("----------------------------------\n");
+    printf("Base Charge    : Rs %8.2f\n", base_charge);
+    printf("Discount       : Rs %8.2f\n", discount);
+    printf("----------------------------------\n");
+    printf("Total Payable  : Rs %8.2f\n", payable);
+    printf("==================================\n");
     
     // Save immediately to persist the change
     save_data();
     
-    press_enter_to_continue();
+    printf("\nPress Enter to continue...");
+    getchar();
 }
 
 void view_parking_space(){
-    display_system_header();
-    print_menu_box("PARKING SPACE VISUALIZATION");
-    
-    printf("\n  Legend: D=Disabled, V=VIP, S=Staff, R=Registered, G=Guest, F=Free\n\n");
+    printf("\n========== PARKING SPACE VISUALIZATION ==========\n");
+    printf("Legend: D=Disabled, V=VIP, S=Staff, R=Registered, G=Guest, F=Free\n\n");
     
     for(int v = 0; v < 5; v++){
         char vt = "MTCVB"[v];
-        printf("  %-15s: ", vehicle_name(vt));
+        printf("%-15s: ", vehicle_name(vt));
         
         for(int i = 0; i < max_slots[v]; i++){
             if(parking_slots[v][i].is_occupied){
@@ -1030,55 +901,41 @@ void view_parking_space(){
     }
     
     // Show example from assignment
-    printf("\n  Example from assignment (Bus slots):\n");
-    printf("  Bus: { DDFF | VVF | SFFF | RRRFFFF | GGGGGGGFFFF }\n");
+    printf("\nExample from assignment (Bus slots):\n");
+    printf("Bus: { DDFF | VVF | SFFF | RRRFFFF | GGGGGGGFFFF }\n");
     
-    press_enter_to_continue();
+    printf("\nPress Enter to continue...");
+    clear_input_buffer();
+    getchar();
 }
 
 // =============== MAIN MENU ===============
-void display_main_menu(){
-    display_system_header();
-    
-    printf("\n");
-    print_menu_box("MAIN MENU");
-    
-    printf("\n");
-    printf("  1. ENTER VEHICLE\n");
-    printf("  2. EXIT VEHICLE\n");
-    printf("  3. VIEW PARKING SPACE\n");
-    printf("  4. VIEW STATISTICS\n");
-    printf("  5. DAILY REPORT\n");
-    printf("  6. SAVE DATA & EXIT\n");
-    
-    print_separator_line();
-    printf("\n  Enter your choice (1-6): ");
+void display_menu(){
+    system("cls");  // Clear screen (Windows)
+    printf("\n========== CAR PARK MANAGEMENT SYSTEM ==========\n");
+    printf("Current Time: %s", ctime(&(time_t){time(NULL)}));
+    printf("================================================\n");
+    printf("(1) Enter Vehicle\n");
+    printf("(2) Exit Vehicle\n");
+    printf("(3) View Parking Space\n");
+    printf("(4) View Statistics\n");
+    printf("(5) Daily Report\n");  // NEW OPTION
+    printf("(6) Save Data & Exit\n");
+    printf("================================================\n");
+    printf("Choice: ");
 }
 
 // =============== MAIN FUNCTION ===============
 int main(){
-    #ifdef _WIN32
-        // Set console window title
-        system("title Car Park Management System");
-    #endif
-    
-    clear_screen();
-    print_double_line();
-    print_centered("CAR PARK MANAGEMENT SYSTEM");
-    print_centered("CSC 506 - Advanced Programming Project");
-    print_double_line();
-    printf("\n");
-    
+    printf("Initializing Car Park Management System...\n");
     load_data();  // This initializes and loads data
     
     int choice;
     
-    do {
-        display_main_menu();
+    do{
+        display_menu();
         if(scanf("%d", &choice) != 1){
             clear_input_buffer();
-            print_error("Invalid input! Please enter a number.");
-            sleep_ms(1500);
             continue;
         }
         clear_input_buffer();
@@ -1097,21 +954,17 @@ int main(){
                 show_statistics();
                 break;
             case 5:
-                show_daily_report();
+                show_daily_report();  // NEW FUNCTION CALL
                 break;
             case 6:
                 save_data();
-                clear_screen();
-                printf("\n");
-                print_double_line();
-                print_centered("THANK YOU FOR USING CAR PARK MANAGEMENT SYSTEM!");
-                print_double_line();
-                printf("\n  Goodbye!\n\n");
-                sleep_ms(2000);
+                printf("\nThank you for using Car Park Management System!\n");
+                printf("Goodbye!\n");
                 break;
             default:
-                print_error("Invalid choice! Please enter 1-6.");
-                sleep_ms(1500);
+                printf("Invalid choice! Please enter 1-6.\n");
+                printf("Press Enter to continue...");
+                getchar();
         }
         
     } while(choice != 6);
