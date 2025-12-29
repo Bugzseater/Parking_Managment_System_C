@@ -9,6 +9,7 @@ This project demonstrates key C programming concepts such as structures, file ha
 ## 📸 Screenshots
 
 ![Main Menu](./screenshots/menu.png)
+
 ![Vehicle Entry](./screenshots/vehicle-book.png)
 
 
