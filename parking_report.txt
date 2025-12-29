@@ -1,13 +1,12 @@
 ========== CAR PARK REPORT ==========
-Generated: Fri Dec 26 14:06:23 2025
-Total Vehicles Served: 1
-Total Revenue: Rs 28.00
+Generated: Mon Dec 29 11:23:21 2025
+Total Vehicles Served: 2
+Total Revenue: Rs 441.92
 
 ========== CURRENT PARKING STATUS ==========
 
 Motorcycle:
-  Slot 026: AC4567 (Staff, Arrived: 2025-12-26 14:04)
-  Occupied: 1, Free: 99
+  Occupied: 0, Free: 100
 
 Three Wheeler:
   Occupied: 0, Free: 75
@@ -24,3 +23,4 @@ Bus:
 
 ========== RECENT TRANSACTIONS ==========
 ABC2233 - 2025-12-26 14:06: Rs 28.00
+AC4567 - 2025-12-29 11:23: Rs 413.92

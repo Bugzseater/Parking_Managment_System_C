@@ -1,6 +1,6 @@
 /*
  * CSC 506 1.0 - Car Park Management System
- * COMPLETE VERSION with PROPER PERSISTENCE
+ * COMPLETE VERSION with PROPER PERSISTENCE + DAILY REPORT
  */
 
 #include <stdio.h>
@@ -110,6 +110,233 @@ char* customer_name(char t){
 void clear_input_buffer() {
     int c;
     while ((c = getchar()) != '\n' && c != EOF);
+}
+
+// Function to check if two times are on the same day
+int is_same_day(time_t t1, time_t t2) {
+    struct tm *tm1 = localtime(&t1);
+    struct tm *tm2 = localtime(&t2);
+    
+    return (tm1->tm_year == tm2->tm_year &&
+            tm1->tm_mon == tm2->tm_mon &&
+            tm1->tm_mday == tm2->tm_mday);
+}
+
+// Function to get start of day timestamp
+time_t get_start_of_day(time_t timestamp) {
+    struct tm *tm_info = localtime(&timestamp);
+    tm_info->tm_hour = 0;
+    tm_info->tm_min = 0;
+    tm_info->tm_sec = 0;
+    return mktime(tm_info);
+}
+
+// Function to get end of day timestamp
+time_t get_end_of_day(time_t timestamp) {
+    struct tm *tm_info = localtime(&timestamp);
+    tm_info->tm_hour = 23;
+    tm_info->tm_min = 59;
+    tm_info->tm_sec = 59;
+    return mktime(tm_info);
+}
+
+// =============== DAILY REPORT FUNCTION ===============
+void show_daily_report() {
+    printf("\n========== DAILY PARKING REPORT ==========\n");
+    
+    if (record_count == 0) {
+        printf("No parking records available.\n");
+        printf("Press Enter to continue...");
+        clear_input_buffer();
+        getchar();
+        return;
+    }
+    
+    // Get date from user
+    int day, month, year;
+    printf("Enter date for report (DD MM YYYY) or 0 0 0 for today: ");
+    scanf("%d %d %d", &day, &month, &year);
+    clear_input_buffer();
+    
+    time_t target_day;
+    if (day == 0 && month == 0 && year == 0) {
+        target_day = time(NULL);
+    } else {
+        struct tm target_tm = {0};
+        target_tm.tm_mday = day;
+        target_tm.tm_mon = month - 1;  // tm_mon is 0-11
+        target_tm.tm_year = year - 1900;  // tm_year is years since 1900
+        target_tm.tm_hour = 0;
+        target_tm.tm_min = 0;
+        target_tm.tm_sec = 0;
+        target_day = mktime(&target_tm);
+    }
+    
+    struct tm *target_info = localtime(&target_day);
+    char date_str[20];
+    strftime(date_str, sizeof(date_str), "%Y-%m-%d", target_info);
+    
+    printf("\nReport for Date: %s\n", date_str);
+    printf("===============================================\n");
+    
+    // Variables for daily statistics
+    int daily_vehicles = 0;
+    float daily_revenue = 0.0;
+    int vehicles_by_type[5] = {0};  // M, T, C, V, B
+    int vehicles_by_customer[5] = {0};  // D, V, S, R, G
+    float revenue_by_type[5] = {0.0};
+    float revenue_by_customer[5] = {0.0};
+    
+    // Filter records for the selected day
+    printf("\nTRANSACTIONS FOR %s:\n", date_str);
+    printf("%-15s %-10s %-12s %-10s %-10s %-10s\n", 
+           "Vehicle No.", "Type", "Customer", "Entry", "Exit", "Amount");
+    printf("------------------------------------------------------------------------\n");
+    
+    int has_transactions = 0;
+    time_t day_start = get_start_of_day(target_day);
+    time_t day_end = get_end_of_day(target_day);
+    
+    for (int i = 0; i < record_count; i++) {
+        if (records[i].exit_time >= day_start && records[i].exit_time <= day_end) {
+            has_transactions = 1;
+            
+            // Format times
+            char entry_str[20], exit_str[20];
+            struct tm *entry_tm = localtime(&records[i].entry_time);
+            struct tm *exit_tm = localtime(&records[i].exit_time);
+            strftime(entry_str, sizeof(entry_str), "%H:%M", entry_tm);
+            strftime(exit_str, sizeof(exit_str), "%H:%M", exit_tm);
+            
+            printf("%-15s %-10s %-12s %-10s %-10s Rs %7.2f\n",
+                   records[i].vehicle_number,
+                   vehicle_name(records[i].vehicle_type),
+                   customer_name(records[i].customer_type),
+                   entry_str,
+                   exit_str,
+                   records[i].payable);
+            
+            // Update statistics
+            daily_vehicles++;
+            daily_revenue += records[i].payable;
+            
+            // Update vehicle type statistics
+            int v_idx = get_vehicle_index(records[i].vehicle_type);
+            if (v_idx >= 0 && v_idx < 5) {
+                vehicles_by_type[v_idx]++;
+                revenue_by_type[v_idx] += records[i].payable;
+            }
+            
+            // Update customer type statistics
+            int c_idx = -1;
+            switch (toupper(records[i].customer_type)) {
+                case 'D': c_idx = 0; break;
+                case 'V': c_idx = 1; break;
+                case 'S': c_idx = 2; break;
+                case 'R': c_idx = 3; break;
+                case 'G': c_idx = 4; break;
+            }
+            if (c_idx >= 0 && c_idx < 5) {
+                vehicles_by_customer[c_idx]++;
+                revenue_by_customer[c_idx] += records[i].payable;
+            }
+        }
+    }
+    
+    if (!has_transactions) {
+        printf("No transactions found for this date.\n");
+        printf("Press Enter to continue...");
+        getchar();
+        return;
+    }
+    
+    // Display summary statistics
+    printf("\n========== DAILY SUMMARY ==========\n");
+    printf("Total Vehicles: %d\n", daily_vehicles);
+    printf("Total Revenue: Rs %.2f\n", daily_revenue);
+    
+    if (daily_vehicles > 0) {
+        printf("Average per Vehicle: Rs %.2f\n", daily_revenue / daily_vehicles);
+    }
+    
+    // Vehicle Type Breakdown
+    printf("\nBY VEHICLE TYPE:\n");
+    printf("%-20s %-10s %-15s %-15s\n", "Type", "Count", "Revenue", "Avg/Vehicle");
+    printf("--------------------------------------------------------------\n");
+    for (int i = 0; i < 5; i++) {
+        char vt = "MTCVB"[i];
+        if (vehicles_by_type[i] > 0) {
+            printf("%-20s %-10d Rs %-12.2f Rs %-12.2f\n",
+                   vehicle_name(vt),
+                   vehicles_by_type[i],
+                   revenue_by_type[i],
+                   revenue_by_type[i] / vehicles_by_type[i]);
+        }
+    }
+    
+    // Customer Type Breakdown
+    printf("\nBY CUSTOMER TYPE:\n");
+    printf("%-20s %-10s %-15s %-15s\n", "Customer", "Count", "Revenue", "Avg/Vehicle");
+    printf("--------------------------------------------------------------\n");
+    char cust_types[5] = {'D', 'V', 'S', 'R', 'G'};
+    for (int i = 0; i < 5; i++) {
+        if (vehicles_by_customer[i] > 0) {
+            printf("%-20s %-10d Rs %-12.2f Rs %-12.2f\n",
+                   customer_name(cust_types[i]),
+                   vehicles_by_customer[i],
+                   revenue_by_customer[i],
+                   revenue_by_customer[i] / vehicles_by_customer[i]);
+        }
+    }
+    
+    // Peak hour analysis
+    printf("\nHOURLY ANALYSIS:\n");
+    int hourly_count[24] = {0};
+    float hourly_revenue[24] = {0};
+    
+    for (int i = 0; i < record_count; i++) {
+        if (records[i].exit_time >= day_start && records[i].exit_time <= day_end) {
+            struct tm *exit_tm = localtime(&records[i].exit_time);
+            int hour = exit_tm->tm_hour;
+            hourly_count[hour]++;
+            hourly_revenue[hour] += records[i].payable;
+        }
+    }
+    
+    printf("Hour : Vehicles Revenue\n");
+    printf("-----------------------\n");
+    for (int hour = 0; hour < 24; hour++) {
+        if (hourly_count[hour] > 0) {
+            printf("%02d:00 : %-9d Rs %.2f\n", 
+                   hour, hourly_count[hour], hourly_revenue[hour]);
+        }
+    }
+    
+    printf("\nBUSIEST HOURS:\n");
+    int max_vehicles = 0, max_revenue_hour = 0;
+    float max_revenue = 0;
+    
+    for (int hour = 0; hour < 24; hour++) {
+        if (hourly_count[hour] > max_vehicles) {
+            max_vehicles = hourly_count[hour];
+        }
+        if (hourly_revenue[hour] > max_revenue) {
+            max_revenue = hourly_revenue[hour];
+            max_revenue_hour = hour;
+        }
+    }
+    
+    printf("Most vehicles: %d at hour(s): ", max_vehicles);
+    for (int hour = 0; hour < 24; hour++) {
+        if (hourly_count[hour] == max_vehicles) {
+            printf("%02d:00 ", hour);
+        }
+    }
+    printf("\nHighest revenue: Rs %.2f at %02d:00\n", max_revenue, max_revenue_hour);
+    
+    printf("\nPress Enter to continue...");
+    clear_input_buffer();
+    getchar();
 }
 
 // =============== INITIALIZATION ===============
@@ -626,7 +853,7 @@ void exit_vehicle(){
     struct tm *entry_tm = localtime(&parking_slots[v_found][slot_found].arrival_time);
     struct tm *exit_tm = localtime(&exit_time);
     strftime(entry_str, sizeof(entry_str), "%Y-%m-%d %H:%M", entry_tm);
-    strftime(exit_str, sizeof(exit_str), "%Y-%m-%d %H:%M", exit_tm);
+    strftime(exit_str, sizeof(exit_str), "%Y-%m-d %H:%M", exit_tm);
     
     printf("Entry Time     : %s\n", entry_str);
     printf("Exit Time      : %s\n", exit_str);
@@ -692,7 +919,8 @@ void display_menu(){
     printf("(2) Exit Vehicle\n");
     printf("(3) View Parking Space\n");
     printf("(4) View Statistics\n");
-    printf("(5) Save Data & Exit\n");
+    printf("(5) Daily Report\n");  // NEW OPTION
+    printf("(6) Save Data & Exit\n");
     printf("================================================\n");
     printf("Choice: ");
 }
@@ -726,17 +954,20 @@ int main(){
                 show_statistics();
                 break;
             case 5:
+                show_daily_report();  // NEW FUNCTION CALL
+                break;
+            case 6:
                 save_data();
                 printf("\nThank you for using Car Park Management System!\n");
                 printf("Goodbye!\n");
                 break;
             default:
-                printf("Invalid choice! Please enter 1-5.\n");
+                printf("Invalid choice! Please enter 1-6.\n");
                 printf("Press Enter to continue...");
                 getchar();
         }
         
-    } while(choice != 5);
+    } while(choice != 6);
     
     // Free allocated memory
     for(int i = 0; i < 5; i++){
